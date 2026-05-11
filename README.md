@@ -4,15 +4,20 @@ Una aplicación Flutter completa para la gestión de rutinas diarias, diseñada 
 
 ## 📋 Descripción del Proyecto
 
-**App Rutina Diaria** es una aplicación móvil integral que permite a los usuarios:
+**Jean Diary** es una aplicación móvil integral con enfoque gamificado que permite a los usuarios:
 
-- ✅ **Gestión de Tareas**: Crear, editar y eliminar tareas diarias
+- ✅ **Gestión de Tareas**: Crear, editar y eliminar misiones diarias
 - 📅 **Agenda Personal**: Organizar actividades por fechas y horas
-- 🎯 **Modo Enfoque**: Sesiones de concentración con temporizador
+- 🎯 **Modo Enfoque**: Sesiones de concentración con temporizador Pomodoro
 - 📊 **Estadísticas**: Visualización del progreso y cumplimiento de metas
 - 🌙 **Modo Oscuro/Claro**: Personalización de la interfaz
 - 🔔 **Notificaciones**: Recordatorios para tareas importantes
 - 📈 **Seguimiento Semanal**: Planificación y revisión semanal
+- 💧 **Tracker de Hidratación**: Control diario de consumo de agua con rachas
+- 🦸 **Skins de Héroes**: Personalización con avatares de superhéroes
+- 🎨 **Colores Personalizados**: Paleta de colores totalmente personalizable
+- 📤 **Exportar/Importar Datos**: Sincronización mediante JSON
+- 🎬 **Calendario de Películas** (FASE 3): Organización de películas y series
 
 ## 🏗️ Arquitectura Técnica
 
@@ -113,29 +118,68 @@ El repositorio está configurado para generar automáticamente APKs con cada rel
 
 ## 📱 Características Principales
 
-### 🎯 Gestión de Tareas
+### 🎯 Gestión de Tareas y Misiones
+- Sistema de misiones con XP y niveles gamificados
 - Creación de tareas con título, descripción y fecha
-- Categorización de tareas
-- Prioridades (Alta, Media, Baja)
-- Estado de completación
+- Categorización y prioridades (Alta, Media, Baja)
+- Estado de completación con sistema de recompensas
+- Sistema de rachas para mantener la motivación
 
-### ⏰ Modo Enfoque
-- Temporizador Pomodoro integrado
-- Sesiones de trabajo personalizables
-- Descansos programados
-- Estadísticas de productividad
+### ⏰ Modo Enfoque Pomodoro
+- Temporizador Pomodoro integrado con sesiones personalizables
+- Descansos programados y notificaciones de sesión
+- Estadísticas de productividad y tiempo de enfoque
+- Modo de concentración sin distracciones
 
 ### 📊 Estadísticas y Progreso
-- Gráficos de cumplimiento diario
-- Seguimiento semanal/mensual
-- Métricas de productividad
-- Historial de tareas completadas
+- Gráficos interactivos de cumplimiento diario/semanal
+- Sistema de niveles y experiencia (XP)
+- Métricas detalladas de productividad
+- Historial completo de misiones completadas
+- Dashboard con estadísticas en tiempo real
 
-### 🎨 Personalización
-- Tema claro/oscuro automático
-- Configuración de colores
-- Tipografías personalizadas
-- Interfaz adaptativa
+### 💧 Tracker de Hidratación
+- Control diario de consumo de agua (4-16 vasos)
+- Sistema de rachas de hidratación
+- Notificaciones personalizables para recordatorios
+- Estadísticas de consumo semanal/mensual
+- Meta diaria ajustable con slider interactivo
+
+### 🦸 Sistema de Skins y Personalización
+- **8 Skins de Héroes disponibles**:
+  - Iron Man, Spider-Man, Batman, Capitán América
+  - Spider-Gwen, Sentry, Superman, Luna Snow
+  - Skin clásico "Geek" personalizable
+- **Paleta de Colores Personalizada**:
+  - Selector de color principal y de acento
+  - Vista previa en tiempo real
+  - 9 colores predefinidos + opción personalizada
+  - Aplicación instantánea a toda la interfaz
+
+### 🌙 Temas y Apariencia
+- Modo claro/oscuro con transiciones suaves
+- Interfaz adaptativa con Material 3
+- Tipografías personalizadas con Google Fonts
+- Animaciones y micro-interacciones fluidas
+
+### 📤 Gestión de Datos
+- **Exportación**: Copia de seguridad en formato JSON
+- **Importación**: Restauración de misiones y progreso
+- Almacenamiento local permanente con SharedPreferences
+- Sincronización manual entre dispositivos
+
+### 🎬 Calendario de Películas (FASE 3) - Próximamente
+- Organización de películas y series por ver
+- Sistema de calificación personal
+- Calendario de estrenos y recordatorios
+- Integración con servicios de streaming
+- Estadísticas de consumo cinematográfico
+
+### 🔔 Sistema de Notificaciones
+- Notificaciones locales para tareas y recordatorios
+- Alarmas del sistema integradas
+- Personalización de tonos y frecuencias
+- Modo silencio programable
 
 ## 🔧 Configuración y Personalización
 
@@ -193,19 +237,33 @@ Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) par
 
 ## 🔄 Versiones
 
-### v1.0.0 (Actual)
+### v1.1.0 (Actual)
+- ✅ Sistema de misiones con XP y niveles gamificados
+- ✅ Tracker de hidratación con rachas (4-16 vasos)
+- ✅ 8 skins de héroes personalizables (Iron Man, Spider-Man, Batman, etc.)
+- ✅ Paleta de colores personalizada con 9+ opciones
+- ✅ Exportación/Importación de datos en formato JSON
+- ✅ Modo enfoque Pomodoro mejorado
+- ✅ Estadísticas avanzadas y dashboard en tiempo real
+- ✅ Sistema de notificaciones y alarmas integradas
+- ✅ Almacenamiento local permanente con SharedPreferences
+- ✅ Interfaz con Material 3 y animaciones fluidas
+
+### v1.0.0
 - ✅ Gestión básica de tareas
 - ✅ Modo enfoque con temporizador
 - ✅ Estadísticas simples
 - ✅ Tema claro/oscuro
 - ✅ Notificaciones básicas
 
-### Próximas Funcionalidades
+### Próximas Funcionalidades (FASE 3)
+- 🎬 **Calendario de Películas y Series**: Organización cinematográfica completa
 - 🔄 Sincronización en la nube
 - 🔄 Colaboración en equipo
-- 🔄 Integración con calendarios externos
+- 🔄 Integración con calendarios externos (Google Calendar, Outlook)
 - 🔄 Modo offline mejorado
-- 🔄 Exportación de datos
+- 🔄 Widget para pantalla principal
+- 🔄 Integración con asistentes de voz (Google Assistant, Siri)
 
 ## 📱 Compatibilidad
 
