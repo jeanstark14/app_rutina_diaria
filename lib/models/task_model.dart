@@ -1,3 +1,5 @@
+import 'subtask_model.dart';
+
 enum TaskPriority { low, medium, high }
 
 class Task {
@@ -13,6 +15,7 @@ class Task {
   final String? notificationSound;
   final int reminderMinutes; // Minutos antes (0 = sin recordatorio)
   final bool syncEnabled; // Sincronizar con reloj nativo
+  final List<Subtask> subtasks;
 
   Task({
     required this.id,
@@ -27,6 +30,7 @@ class Task {
     this.notificationSound,
     this.reminderMinutes = 5, // Por defecto 5 min antes
     this.syncEnabled = false,
+    this.subtasks = const [],
   });
 
   Map<String, dynamic> toMap() {
@@ -82,6 +86,7 @@ class Task {
     String? notificationSound,
     int? reminderMinutes,
     bool? syncEnabled,
+    List<Subtask>? subtasks,
   }) {
     return Task(
       id: id,
@@ -96,6 +101,7 @@ class Task {
       notificationSound: notificationSound ?? this.notificationSound,
       reminderMinutes: reminderMinutes ?? this.reminderMinutes,
       syncEnabled: syncEnabled ?? this.syncEnabled,
+      subtasks: subtasks ?? this.subtasks,
     );
   }
 
@@ -110,4 +116,28 @@ class Task {
         "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
     return completedDates.contains(dateStr);
   }
+
+  // --- MÉTODOS PARA SUBTAREAS ---
+
+  /// Calcula el progreso de subtareas (0.0 a 1.0)
+  double get subtaskProgress {
+    if (subtasks.isEmpty) return isCompletedForDate(DateTime.now()) ? 1.0 : 0.0;
+    final completed = subtasks.where((s) => s.isCompleted).length;
+    return completed / subtasks.length;
+  }
+
+  /// Devuelve el porcentaje completado (0-100)
+  int get subtaskProgressPercent => (subtaskProgress * 100).round();
+
+  /// Verifica si todas las subtareas están completadas
+  bool get areAllSubtasksCompleted {
+    if (subtasks.isEmpty) return false;
+    return subtasks.every((s) => s.isCompleted);
+  }
+
+  /// Cuenta subtareas completadas
+  int get completedSubtasksCount => subtasks.where((s) => s.isCompleted).length;
+
+  /// Cuenta subtareas pendientes
+  int get pendingSubtasksCount => subtasks.where((s) => !s.isCompleted).length;
 }

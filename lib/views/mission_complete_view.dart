@@ -83,7 +83,7 @@ class MissionCompleteView extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 40),
               child: Text(
-                'Has demostrado disciplina y compromiso. Este logro es una prueba de tu potencial heroico. Sigue así para alcanzar rangos superiores.',
+                '¡Excelente trabajo! Has completado todas las subtareas de esta misión. Tu atención al detalle y perseverancia te hacen un agente de élite.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.outfit(
                   fontSize: 14,

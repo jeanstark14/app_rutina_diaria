@@ -9,15 +9,16 @@ Una aplicación Flutter completa para la gestión de rutinas diarias, diseñada 
 - ✅ **Gestión de Tareas**: Crear, editar y eliminar misiones diarias
 - 📅 **Agenda Personal**: Organizar actividades por fechas y horas
 - 🎯 **Modo Enfoque**: Sesiones de concentración con temporizador Pomodoro
-- 📊 **Estadísticas**: Visualización del progreso y cumplimiento de metas
+- 📊 **Estadísticas**: Visualización del progreso y cumplimiento de metas (Productividad + Salud + Cine)
 - 🌙 **Modo Oscuro/Claro**: Personalización de la interfaz
 - 🔔 **Notificaciones**: Recordatorios para tareas importantes
 - 📈 **Seguimiento Semanal**: Planificación y revisión semanal
 - 💧 **Tracker de Hidratación**: Control diario de consumo de agua con rachas
+- 🍎 **Centro de Nutrición**: Control de calorías, macronutrientes y somatotipos
+- 🎬 **Calendario Cinematográfico**: Seguimiento de estrenos con integración TMDB
 - 🦸 **Skins de Héroes**: Personalización con avatares de superhéroes
 - 🎨 **Colores Personalizados**: Paleta de colores totalmente personalizable
 - 📤 **Exportar/Importar Datos**: Sincronización mediante JSON
-- 🎬 **Calendario de Películas** (FASE 3): Organización de películas y series
 
 ## 🏗️ Arquitectura Técnica
 
@@ -138,6 +139,22 @@ El repositorio está configurado para generar automáticamente APKs con cada rel
 - Historial completo de misiones completadas
 - Dashboard con estadísticas en tiempo real
 
+### 🍎 Centro de Nutrición y Macronutrientes
+- **Perfil Físico Personalizado**: Cálculo de metas basado en peso, altura, edad y nivel de actividad
+- **Análisis de Somatotipo**: Recomendaciones específicas para Ectomorfos, Mesomorfos y Endomorfos
+- **Tracker de Calorías**: Control diario de ingesta vs objetivo calórico
+- **Desglose de Macros**: Seguimiento de Proteínas, Carbohidratos y Grasas
+- **Registro de Comidas**: Historial diario detallado con tipos de comida (Desayuno, Almuerzo, etc.)
+- **Recompensas XP**: Gana experiencia al cumplir tus metas nutricionales diarias
+
+### 🎬 Calendario Cinematográfico (TMDB)
+- **Búsqueda Global**: Acceso a la base de datos de The Movie Database (TMDB)
+- **Cuenta Regresiva**: Visualiza cuántos días faltan para los estrenos de tu agenda
+- **Detalles Premium**: Sinopsis, reparto, calificación, posters y trailers
+- **Favoritos**: Guarda las películas que más te interesan para un acceso rápido
+- **Recomendaciones Inteligentes**: Descubre películas populares y tendencias
+- **Sincronización de Estadísticas**: Seguimiento de tiempo invertido en cine
+
 ### 💧 Tracker de Hidratación
 - Control diario de consumo de agua (4-16 vasos)
 - Sistema de rachas de hidratación
@@ -168,12 +185,7 @@ El repositorio está configurado para generar automáticamente APKs con cada rel
 - Almacenamiento local permanente con SharedPreferences
 - Sincronización manual entre dispositivos
 
-### 🎬 Calendario de Películas (FASE 3) - Próximamente
-- Organización de películas y series por ver
-- Sistema de calificación personal
-- Calendario de estrenos y recordatorios
-- Integración con servicios de streaming
-- Estadísticas de consumo cinematográfico
+
 
 ### 🔔 Sistema de Notificaciones
 - Notificaciones locales para tareas y recordatorios
@@ -183,8 +195,30 @@ El repositorio está configurado para generar automáticamente APKs con cada rel
 
 ## 🔧 Configuración y Personalización
 
+### ⚙️ Configuración de API (Opcional)
+
+Para habilitar la búsqueda de películas desde la base de datos de TMDB:
+
+1. **Obtener API Key de TMDB**
+   - Regístrate en [https://www.themoviedb.org/](https://www.themoviedb.org/)
+   - Solicita una API Key gratuita en Settings > API
+   - Verifica tu email para activar la API Key
+
+2. **Configurar en el proyecto**
+   ```bash
+   # Editar el archivo de configuración
+   lib/services/tmdb_config.dart
+   
+   # Reemplazar la API Key
+   static const String apiKey = 'TU_API_KEY_AQUI';
+   ```
+
+3. **Documentación completa**
+   - Ver `API_SETUP.md` para instrucciones detalladas
+   - Incluye solución de problemas y mejores prácticas
+
 ### Variables de Entorno
-No se requieren variables de entorno para esta aplicación. Todos los datos se almacenan localmente.
+No se requieren variables de entorno adicionales. Todos los datos se almacenan localmente.
 
 ### Base de Datos
 - **Motor**: SQLite
@@ -237,10 +271,17 @@ Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) par
 
 ## 🔄 Versiones
 
-### v1.1.0 (Actual)
+### v1.2.0 (Actual)
+- ✅ **Centro de Nutrición**: Perfiles físicos, somatotipos y metas de macros
+- ✅ **Calendario Cinematográfico**: Integración completa con TMDB y cuenta regresiva
+- ✅ **Inteligencia de Datos**: Dashboard de estadísticas unificado
+- ✅ **XP Dinámico**: Recompensas por hidratación y nutrición
+- ✅ Mejoras en la interfaz y optimización de carga
+
+### v1.1.0
 - ✅ Sistema de misiones con XP y niveles gamificados
 - ✅ Tracker de hidratación con rachas (4-16 vasos)
-- ✅ 8 skins de héroes personalizables (Iron Man, Spider-Man, Batman, etc.)
+- ✅ 8 skins de héroes personalizables
 - ✅ Paleta de colores personalizada con 9+ opciones
 - ✅ Exportación/Importación de datos en formato JSON
 - ✅ Modo enfoque Pomodoro mejorado
@@ -256,8 +297,7 @@ Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) par
 - ✅ Tema claro/oscuro
 - ✅ Notificaciones básicas
 
-### Próximas Funcionalidades (FASE 3)
-- 🎬 **Calendario de Películas y Series**: Organización cinematográfica completa
+### Próximas Funcionalidades
 - 🔄 Sincronización en la nube
 - 🔄 Colaboración en equipo
 - 🔄 Integración con calendarios externos (Google Calendar, Outlook)

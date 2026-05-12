@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 
 class UserProvider with ChangeNotifier {
   int _xp = 0;
@@ -34,7 +36,16 @@ class UserProvider with ChangeNotifier {
     _level = prefs.getInt('user_level') ?? 1;
     _name = prefs.getString('user_name') ?? 'Agente';
     final imagePath = prefs.getString('user_image');
-    if (imagePath != null) _profileImage = File(imagePath);
+    if (imagePath != null) {
+      final file = File(imagePath);
+      if (await file.exists()) {
+        _profileImage = file;
+      } else {
+        // Imagen no existe, limpiar referencia
+        _profileImage = null;
+        await prefs.remove('user_image');
+      }
+    }
     notifyListeners();
   }
 
@@ -66,11 +77,32 @@ class UserProvider with ChangeNotifier {
     await _saveData();
   }
 
-  Future<void> updateProfileImage(String path) async {
-    _profileImage = File(path);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user_image', path);
-    notifyListeners();
+  Future<void> updateProfileImage(String imagePath) async {
+    try {
+      // Obtener directorio de documentos de la app
+      final appDir = await getApplicationDocumentsDirectory();
+      final fileName =
+          'profile_image_${DateTime.now().millisecondsSinceEpoch}.png';
+      final permanentPath = path.join(appDir.path, fileName);
+
+      // Copiar imagen a directorio permanente
+      final sourceFile = File(imagePath);
+      if (await sourceFile.exists()) {
+        await sourceFile.copy(permanentPath);
+
+        // Eliminar imagen anterior si existe
+        if (_profileImage != null && await _profileImage!.exists()) {
+          await _profileImage!.delete();
+        }
+
+        _profileImage = File(permanentPath);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_image', permanentPath);
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error al guardar imagen de perfil: $e');
+    }
   }
 
   Future<void> _saveData() async {

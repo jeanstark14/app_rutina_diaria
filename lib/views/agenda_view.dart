@@ -9,12 +9,13 @@ import '../services/theme_provider.dart';
 import '../models/task_model.dart';
 import '../theme/app_theme.dart';
 import '../widgets/create_task_form.dart';
+import '../widgets/task_detail_modal.dart';
 import 'master_schedule_view.dart';
 import 'calendar_view.dart';
 import 'config_view.dart';
-import 'stats_view.dart';
 import 'focus_mode_view.dart';
 import 'mission_complete_view.dart';
+import 'water_tracker_view.dart';
 
 class AgendaView extends StatefulWidget {
   const AgendaView({super.key});
@@ -284,16 +285,6 @@ class _AgendaViewState extends State<AgendaView> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
-            builder: (context) => const CreateTaskForm()),
-        backgroundColor: primaryColor,
-        child: const Icon(Icons.rocket_launch, color: Colors.white),
-      ),
     );
   }
 }
@@ -391,12 +382,12 @@ class _HeaderSection extends StatelessWidget {
             tooltip: 'Lista Maestra',
           ),
           IconButton(
-            icon: Icon(Icons.insights, color: primaryColor),
+            icon: Icon(Icons.water_drop, color: primaryColor),
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => StatsView()),
+              MaterialPageRoute(builder: (context) => const WaterTrackerView()),
             ),
-            tooltip: 'Estadísticas',
+            tooltip: 'Hidratación',
           ),
           const SizedBox(width: 8),
           GestureDetector(
@@ -735,9 +726,18 @@ class _CalendarStrip extends StatelessWidget {
   }
 }
 
-class _TaskItem extends StatelessWidget {
+class _TaskItem extends StatefulWidget {
   final Task task;
   const _TaskItem({required this.task});
+
+  @override
+  State<_TaskItem> createState() => _TaskItemState();
+}
+
+class _TaskItemState extends State<_TaskItem> {
+  bool _isExpanded = false;
+
+  Task get task => widget.task;
 
   void _showEditModal(BuildContext context) {
     showModalBottomSheet(
@@ -748,6 +748,13 @@ class _TaskItem extends StatelessWidget {
         builder: (context) => CreateTaskForm(taskToEdit: task));
   }
 
+  void _showTaskDetailModal(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => TaskDetailModal(task: task),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final taskProvider = context.watch<TaskProvider>();
@@ -756,148 +763,341 @@ class _TaskItem extends StatelessWidget {
     final isDark = themeProvider.isDarkMode;
     final isCompleted = task.isCompletedForDate(taskProvider.selectedDate);
     final taskColor = Color(task.color);
+    final hasSubtasks = task.subtasks.isNotEmpty;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Column(
         children: [
-          SizedBox(
-            width: 60,
-            child: Column(
-              children: [
-                Text(DateFormat('HH:mm').format(task.startTime),
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: isCompleted
-                            ? (isDark ? Colors.white30 : Colors.grey.shade400)
-                            : (isDark ? Colors.white : AppTheme.textBlack),
-                        decoration: isCompleted
-                            ? TextDecoration.lineThrough
-                            : TextDecoration.none,
-                        decorationThickness: 2.0,
-                        decorationColor:
-                            isDark ? Colors.white30 : Colors.grey.shade400)),
-                Text(DateFormat('a').format(task.startTime),
-                    style: TextStyle(
-                        fontSize: 10,
-                        color: isCompleted
-                            ? (isDark ? Colors.white30 : Colors.grey.shade400)
-                            : (isDark ? Colors.white38 : AppTheme.textGrey))),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: GestureDetector(
-              onTap: () => _showEditModal(context),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: isDark ? AppTheme.darkSurface : Colors.white,
-                  borderRadius: BorderRadius.circular(30),
-                  boxShadow: [
-                    BoxShadow(
-                        color: Colors.black.withOpacity(0.03),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4))
-                  ],
-                  border: !isCompleted
-                      ? Border(left: BorderSide(color: taskColor, width: 6))
-                      : null,
-                ),
-                child: Row(
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 60,
+                child: Column(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                          color: taskColor.withOpacity(0.1),
-                          shape: BoxShape.circle),
-                      child: Icon(_getIconForTask(task.title),
-                          color: taskColor, size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              if (task.priority == TaskPriority.high)
-                                Container(
-                                    margin: const EdgeInsets.only(right: 6),
-                                    width: 8,
-                                    height: 8,
-                                    decoration: const BoxDecoration(
-                                        color: Colors.red,
-                                        shape: BoxShape.circle)),
-                              Expanded(
-                                child: Text(task.title,
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 15,
-                                        color: isCompleted
-                                            ? (isDark
-                                                ? Colors.white30
-                                                : Colors.grey.shade400)
-                                            : (isDark
-                                                ? Colors.white
-                                                : AppTheme.textBlack),
-                                        decoration: isCompleted
-                                            ? TextDecoration.lineThrough
-                                            : TextDecoration.none,
-                                        decorationThickness: 2.0,
-                                        decorationColor: isDark
-                                            ? Colors.white30
-                                            : Colors.grey.shade400)),
-                              ),
-                            ],
-                          ),
-                          Text(
-                              '${task.duration?.inMinutes ?? 30} min • Prioridad ${_getPriorityText(task.priority)}',
-                              style: TextStyle(
-                                  color: isDark
-                                      ? Colors.white38
-                                      : AppTheme.textGrey,
-                                  fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                        icon: Icon(Icons.delete_outline,
-                            size: 20, color: Colors.red.withOpacity(0.5)),
-                        onPressed: () => _confirmDelete(context, taskProvider)),
-                    GestureDetector(
-                      onTap: () async {
-                        final xp = await taskProvider.toggleTaskStatus(task);
-                        userProvider.addXp(xp);
-                      },
-                      child: Container(
-                        width: 26,
-                        height: 26,
-                        decoration: BoxDecoration(
-                            border: Border.all(
-                                color: isCompleted
-                                    ? taskColor
-                                    : (isDark
-                                        ? Colors.white24
-                                        : Colors.grey.shade300),
-                                width: 2),
-                            borderRadius: BorderRadius.circular(8),
-                            color:
-                                isCompleted ? taskColor : Colors.transparent),
-                        child: isCompleted
-                            ? const Icon(Icons.check,
-                                color: Colors.white, size: 18)
-                            : null,
-                      ),
-                    ),
+                    Text(DateFormat('HH:mm').format(task.startTime),
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: isCompleted
+                                ? (isDark
+                                    ? Colors.white30
+                                    : Colors.grey.shade400)
+                                : (isDark ? Colors.white : AppTheme.textBlack),
+                            decoration: isCompleted
+                                ? TextDecoration.lineThrough
+                                : TextDecoration.none,
+                            decorationThickness: 2.0,
+                            decorationColor: isDark
+                                ? Colors.white30
+                                : Colors.grey.shade400)),
+                    Text(DateFormat('a').format(task.startTime),
+                        style: TextStyle(
+                            fontSize: 10,
+                            color: isCompleted
+                                ? (isDark
+                                    ? Colors.white30
+                                    : Colors.grey.shade400)
+                                : (isDark
+                                    ? Colors.white38
+                                    : AppTheme.textGrey))),
                   ],
                 ),
               ),
-            ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => _showEditModal(context),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppTheme.darkSurface : Colors.white,
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [
+                        BoxShadow(
+                            color: Colors.black.withOpacity(0.03),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4))
+                      ],
+                      border: !isCompleted
+                          ? Border(left: BorderSide(color: taskColor, width: 6))
+                          : null,
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                              color: taskColor.withOpacity(0.1),
+                              shape: BoxShape.circle),
+                          child: Icon(_getIconForTask(task.title),
+                              color: taskColor, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  if (task.priority == TaskPriority.high)
+                                    Container(
+                                        margin: const EdgeInsets.only(right: 6),
+                                        width: 8,
+                                        height: 8,
+                                        decoration: const BoxDecoration(
+                                            color: Colors.red,
+                                            shape: BoxShape.circle)),
+                                  Expanded(
+                                    child: Text(task.title,
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 15,
+                                            color: isCompleted
+                                                ? (isDark
+                                                    ? Colors.white30
+                                                    : Colors.grey.shade400)
+                                                : (isDark
+                                                    ? Colors.white
+                                                    : AppTheme.textBlack),
+                                            decoration: isCompleted
+                                                ? TextDecoration.lineThrough
+                                                : TextDecoration.none,
+                                            decorationThickness: 2.0,
+                                            decorationColor: isDark
+                                                ? Colors.white30
+                                                : Colors.grey.shade400)),
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                  '${task.duration?.inMinutes ?? 30} min • Prioridad ${_getPriorityText(task.priority)}',
+                                  style: TextStyle(
+                                      color: isDark
+                                          ? Colors.white38
+                                          : AppTheme.textGrey,
+                                      fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.open_in_full,
+                              size: 18, color: taskColor.withOpacity(0.6)),
+                          onPressed: () => _showTaskDetailModal(context),
+                          tooltip: 'Ver detalles',
+                        ),
+                        IconButton(
+                            icon: Icon(Icons.delete_outline,
+                                size: 20, color: Colors.red.withOpacity(0.5)),
+                            onPressed: () =>
+                                _confirmDelete(context, taskProvider)),
+                        GestureDetector(
+                          onTap: () async {
+                            final xp =
+                                await taskProvider.toggleTaskStatus(task);
+                            userProvider.addXp(xp);
+                          },
+                          child: Container(
+                            width: 26,
+                            height: 26,
+                            decoration: BoxDecoration(
+                                border: Border.all(
+                                    color: isCompleted
+                                        ? taskColor
+                                        : (isDark
+                                            ? Colors.white24
+                                            : Colors.grey.shade300),
+                                    width: 2),
+                                borderRadius: BorderRadius.circular(8),
+                                color: isCompleted
+                                    ? taskColor
+                                    : Colors.transparent),
+                            child: isCompleted
+                                ? const Icon(Icons.check,
+                                    color: Colors.white, size: 18)
+                                : null,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
+          // Sección de subtareas expandible
+          if (hasSubtasks) ...[
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: () => setState(() => _isExpanded = !_isExpanded),
+              child: Row(
+                children: [
+                  const SizedBox(width: 68),
+                  Icon(
+                    _isExpanded ? Icons.expand_less : Icons.expand_more,
+                    size: 18,
+                    color: isDark ? Colors.white54 : Colors.grey.shade600,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _isExpanded
+                        ? 'Ocultar subtareas (${task.subtaskProgressPercent}%)'
+                        : 'Ver ${task.subtasks.length} subtareas (${task.completedSubtasksCount}/${task.subtasks.length})',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? Colors.white54 : Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (_isExpanded) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const SizedBox(width: 68),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? AppTheme.darkSurface.withOpacity(0.5)
+                            : Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isDark ? Colors.white10 : Colors.grey.shade200,
+                        ),
+                      ),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: task.subtasks.length,
+                        itemBuilder: (context, index) {
+                          final subtask = task.subtasks[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Row(
+                              children: [
+                                GestureDetector(
+                                  onTap: () async {
+                                    final xp = await taskProvider.toggleSubtask(
+                                        task.id, subtask.id);
+                                    userProvider.addXp(xp);
+                                    // Forzar actualización inmediata de la UI
+                                    if (mounted) {
+                                      setState(() {});
+                                    }
+                                  },
+                                  child: Container(
+                                    width: 20,
+                                    height: 20,
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: subtask.isCompleted
+                                            ? taskColor
+                                            : (isDark
+                                                ? Colors.white30
+                                                : Colors.grey.shade400),
+                                        width: 2,
+                                      ),
+                                      borderRadius: BorderRadius.circular(4),
+                                      color: subtask.isCompleted
+                                          ? taskColor
+                                          : Colors.transparent,
+                                    ),
+                                    child: subtask.isCompleted
+                                        ? const Icon(Icons.check,
+                                            color: Colors.white, size: 14)
+                                        : null,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    '${index + 1}. ${subtask.title}',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: subtask.isCompleted
+                                          ? (isDark
+                                              ? Colors.white38
+                                              : Colors.grey.shade500)
+                                          : (isDark
+                                              ? Colors.white70
+                                              : AppTheme.textBlack),
+                                      decoration: subtask.isCompleted
+                                          ? TextDecoration.lineThrough
+                                          : null,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              // Botón para completar tarea si todas las subtareas están hechas
+              if (task.areAllSubtasksCompleted && !isCompleted) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const SizedBox(width: 68),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () async {
+                          final xp =
+                              await taskProvider.completeTaskWithSubtasks(task);
+                          userProvider.addXp(xp);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content:
+                                  Text('¡Misión "${task.title}" completada!'),
+                              backgroundColor: taskColor,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                          // Forzar actualización inmediata de la UI
+                          if (mounted) {
+                            setState(() {});
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 10, horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: taskColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border:
+                                Border.all(color: taskColor.withOpacity(0.3)),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.check_circle_outline,
+                                  color: taskColor, size: 18),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Completar misión',
+                                style: TextStyle(
+                                  color: taskColor,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ],
         ],
       ),
     );
@@ -939,8 +1139,19 @@ class _TaskItem extends StatelessWidget {
     if (title.contains('desayuno') || title.contains('comida'))
       return Icons.restaurant;
     if (title.contains('gym') || title.contains('ejercicio')) return Icons.bolt;
-    if (title.contains('trabajo')) return Icons.terminal;
+    if (title.contains('trabajo')) return Icons.work;
     if (title.contains('reunión')) return Icons.hub;
+    if (title.contains('descanso')) return Icons.bed;
+    if (title.contains('película')) return Icons.movie;
+    if (title.contains('tiempo libre')) return Icons.sports_esports;
+    if (title.contains('lectura')) return Icons.menu_book;
+    if (title.contains('estudio')) return Icons.menu_book;
+    if (title.contains('cine')) return Icons.movie;
+    if (title.contains('compra')) return Icons.shopping_cart;
+    if (title.contains('limpieza')) return Icons.cleaning_services;
+    if (title.contains('paseo')) return Icons.directions_walk;
+    if (title.contains('meditar')) return Icons.menu_book_outlined;
+    if (title.contains('Creacion de Contenido')) return Icons.video_call;
     return Icons.shield;
   }
 }
@@ -962,7 +1173,7 @@ class _EmptyState extends StatelessWidget {
                 fontSize: 16,
                 fontWeight: FontWeight.w500)),
         const SizedBox(height: 8),
-        Text('"Haría esto todo el día" - Esperando órdenes.',
+        Text('"Como siempre, es un gran placer verlo trabajar."',
             style: TextStyle(
                 color: AppTheme.textGrey.withOpacity(0.6),
                 fontSize: 12,

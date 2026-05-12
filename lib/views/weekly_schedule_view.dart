@@ -96,7 +96,7 @@ class WeeklyScheduleView extends StatelessWidget {
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                           color: isToday
-                              ? Colors.white
+                              ? const Color.fromARGB(255, 255, 255, 255)
                               : (isDark ? Colors.white : AppTheme.textBlack))),
                 ),
               ],

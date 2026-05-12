@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../models/task_model.dart';
+import '../models/subtask_model.dart';
 import '../services/database_service.dart';
 import '../services/notification_service.dart';
 
@@ -127,7 +128,7 @@ class TaskProvider with ChangeNotifier {
     _isLoading = true;
 
     try {
-      final allTasksFromDb = await _dbService.getTasks();
+      final allTasksFromDb = await _dbService.getTasksWithSubtasks();
       debugPrint('=== CARGANDO TAREAS ===');
       debugPrint(
           'Fecha seleccionada: $_selectedDate (day: ${_selectedDate.day}, month: ${_selectedDate.month}, year: ${_selectedDate.year}, weekday: ${_selectedDate.weekday})');
@@ -392,14 +393,47 @@ class TaskProvider with ChangeNotifier {
     final updatedTask = task.copyWith(completedDates: newCompletedDates);
     await _dbService.updateTask(updatedTask);
 
-    final taskIndex = _allTasks.indexWhere((t) => t.id == task.id);
-    if (taskIndex >= 0) {
-      _allTasks[taskIndex] = updatedTask;
+    // Si se está completando la tarea principal, también completar todas las subtareas
+    if (!wasAlreadyCompleted && task.subtasks.isNotEmpty) {
+      for (var subtask in task.subtasks.where((s) => !s.isCompleted)) {
+        final updatedSubtask = subtask.copyWith(
+          isCompleted: true,
+          completedAt: DateTime.now(),
+        );
+        await _dbService.updateSubtask(updatedSubtask);
+      }
+
+      // Actualizar tarea en memoria con subtareas completadas
+      final updatedSubtasks = task.subtasks
+          .map(
+              (s) => s.copyWith(isCompleted: true, completedAt: DateTime.now()))
+          .toList();
+
+      final taskIndex = _allTasks.indexWhere((t) => t.id == task.id);
+      if (taskIndex >= 0) {
+        _allTasks[taskIndex] = task.copyWith(
+          subtasks: updatedSubtasks,
+          completedDates: newCompletedDates,
+        );
+      }
+    } else {
+      final taskIndex = _allTasks.indexWhere((t) => t.id == task.id);
+      if (taskIndex >= 0) {
+        _allTasks[taskIndex] = updatedTask;
+      }
     }
 
+    // Actualizar lista de tareas y verificar celebración en una sola operación
     _updateCurrentTasksList();
+    _checkAndTriggerCelebration(wasAlreadyCompleted);
+    notifyListeners();
 
-    // Verificar celebración DESPUÉS de actualizar
+    return xpEarned;
+  }
+
+  void _checkAndTriggerCelebration(bool wasAlreadyCompleted) {
+    if (wasAlreadyCompleted) return;
+
     final allTasksForDate = _allTasks
         .where((t) => t.repeatDays.isEmpty
             ? (t.startTime.day == _selectedDate.day &&
@@ -413,7 +447,7 @@ class TaskProvider with ChangeNotifier {
     debugPrint('allTasksForDate count: ${allTasksForDate.length}');
     debugPrint('allTasksForDate.isNotEmpty: ${allTasksForDate.isNotEmpty}');
 
-    if (!wasAlreadyCompleted && allTasksForDate.isNotEmpty) {
+    if (allTasksForDate.isNotEmpty) {
       final allCompleted =
           allTasksForDate.every((t) => t.isCompletedForDate(_selectedDate));
       debugPrint('allCompleted: $allCompleted');
@@ -424,11 +458,6 @@ class TaskProvider with ChangeNotifier {
         debugPrint('🎉 CELEBRATION ACTIVATED! _showCelebration = true');
       }
     }
-
-    notifyListeners();
-    await loadTasks();
-
-    return xpEarned;
   }
 
   void resetCelebration() {
@@ -461,5 +490,187 @@ class TaskProvider with ChangeNotifier {
       }
     }
     return stats;
+  }
+
+  // --- MÉTODOS PARA SUBTAREAS ---
+
+  /// Añade una subtarea a una tarea existente
+  Future<void> addSubtask(String taskId, String title) async {
+    final newSubtask = Subtask(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      taskId: taskId,
+      title: title,
+      orderIndex: _getNextSubtaskOrder(taskId),
+    );
+
+    await _dbService.insertSubtask(newSubtask);
+
+    // Actualizar la tarea en memoria
+    final taskIndex = _allTasks.indexWhere((t) => t.id == taskId);
+    if (taskIndex >= 0) {
+      final updatedSubtasks = [..._allTasks[taskIndex].subtasks, newSubtask];
+      _allTasks[taskIndex] =
+          _allTasks[taskIndex].copyWith(subtasks: updatedSubtasks);
+      _updateCurrentTasksList();
+      notifyListeners();
+    }
+
+    debugPrint('Subtarea añadida: "$title" a tarea $taskId');
+  }
+
+  /// Actualiza el estado de completado de una subtarea
+  /// Devuelve el XP ganado/perdido
+  Future<int> toggleSubtask(String taskId, String subtaskId) async {
+    final taskIndex = _allTasks.indexWhere((t) => t.id == taskId);
+    if (taskIndex < 0) return 0;
+
+    final task = _allTasks[taskIndex];
+    final subtaskIndex = task.subtasks.indexWhere((s) => s.id == subtaskId);
+    if (subtaskIndex < 0) return 0;
+
+    final subtask = task.subtasks[subtaskIndex];
+    final newCompletedStatus = !subtask.isCompleted;
+
+    // Crear subtarea actualizada
+    final updatedSubtask = subtask.copyWith(
+      isCompleted: newCompletedStatus,
+      completedAt: newCompletedStatus ? DateTime.now() : null,
+    );
+
+    // Actualizar en BD
+    await _dbService.updateSubtask(updatedSubtask);
+
+    // Actualizar lista de subtareas
+    final updatedSubtasks = List<Subtask>.from(task.subtasks);
+    updatedSubtasks[subtaskIndex] = updatedSubtask;
+
+    // Actualizar tarea en memoria
+    _allTasks[taskIndex] = task.copyWith(subtasks: updatedSubtasks);
+    _updateCurrentTasksList();
+
+    // Calcular XP proporcional
+    final xpEarned = _calculateSubtaskXp(task, newCompletedStatus);
+
+    // Verificar si todas las subtareas están completas
+    final allSubtasksCompleted = updatedSubtasks.every((s) => s.isCompleted);
+
+    if (allSubtasksCompleted && newCompletedStatus) {
+      // Todas completadas - ofrecer completar tarea principal
+      _lastStatusMessage =
+          '¡Todas las subtareas completadas! ¿Completar misión "${task.title}"?';
+    } else if (!newCompletedStatus) {
+      // Desmarcó una subtarea
+      _lastStatusMessage = 'Subtarea desmarcada. XP ajustado.';
+    } else {
+      final progress = task.subtaskProgressPercent;
+      _lastStatusMessage = 'Subtarea completada: $progress% de la misión';
+    }
+
+    notifyListeners();
+    return xpEarned;
+  }
+
+  /// Elimina una subtarea
+  Future<void> deleteSubtask(String taskId, String subtaskId) async {
+    await _dbService.deleteSubtask(subtaskId);
+
+    final taskIndex = _allTasks.indexWhere((t) => t.id == taskId);
+    if (taskIndex >= 0) {
+      final updatedSubtasks = _allTasks[taskIndex]
+          .subtasks
+          .where((s) => s.id != subtaskId)
+          .toList();
+      _allTasks[taskIndex] =
+          _allTasks[taskIndex].copyWith(subtasks: updatedSubtasks);
+      _updateCurrentTasksList();
+      notifyListeners();
+    }
+  }
+
+  /// Reordena las subtareas
+  Future<void> reorderSubtasks(String taskId, List<Subtask> newOrder) async {
+    for (var i = 0; i < newOrder.length; i++) {
+      final updated = newOrder[i].copyWith(orderIndex: i);
+      await _dbService.updateSubtask(updated);
+    }
+
+    final taskIndex = _allTasks.indexWhere((t) => t.id == taskId);
+    if (taskIndex >= 0) {
+      _allTasks[taskIndex] = _allTasks[taskIndex].copyWith(subtasks: newOrder);
+      notifyListeners();
+    }
+  }
+
+  /// Completar tarea principal y auto-completar todas las subtareas
+  Future<int> completeTaskWithSubtasks(Task task) async {
+    final dateStr =
+        "${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}";
+
+    // Marcar todas las subtareas como completadas
+    for (var subtask in task.subtasks.where((s) => !s.isCompleted)) {
+      final updated = subtask.copyWith(
+        isCompleted: true,
+        completedAt: DateTime.now(),
+      );
+      await _dbService.updateSubtask(updated);
+    }
+
+    // Actualizar tarea en memoria con subtareas completadas
+    final updatedSubtasks = task.subtasks
+        .map((s) => s.copyWith(isCompleted: true, completedAt: DateTime.now()))
+        .toList();
+
+    final taskIndex = _allTasks.indexWhere((t) => t.id == task.id);
+    if (taskIndex >= 0) {
+      _allTasks[taskIndex] = task.copyWith(
+        subtasks: updatedSubtasks,
+        completedDates: [...task.completedDates, dateStr],
+      );
+      _updateCurrentTasksList();
+    }
+
+    // Calcular XP total
+    final baseXp = _getBaseXpForPriority(task.priority);
+    notifyListeners();
+
+    debugPrint(
+        'Tarea "${task.title}" y ${updatedSubtasks.length} subtareas completadas');
+    return baseXp;
+  }
+
+  /// Calcula XP proporcional para subtareas
+  int _calculateSubtaskXp(Task task, bool isCompleting) {
+    if (task.subtasks.isEmpty) return 0;
+
+    final baseXp = _getBaseXpForPriority(task.priority);
+    final xpPerSubtask = (baseXp / task.subtasks.length).ceil();
+
+    return isCompleting ? xpPerSubtask : -xpPerSubtask;
+  }
+
+  int _getBaseXpForPriority(TaskPriority priority) {
+    switch (priority) {
+      case TaskPriority.high:
+        return 50;
+      case TaskPriority.medium:
+        return 30;
+      case TaskPriority.low:
+        return 15;
+    }
+  }
+
+  int _getNextSubtaskOrder(String taskId) {
+    final task = _allTasks.firstWhere((t) => t.id == taskId,
+        orElse: () => Task(
+            id: '',
+            title: '',
+            startTime: DateTime.now(),
+            repeatDays: [],
+            completedDates: []));
+    if (task.subtasks.isEmpty) return 0;
+    return task.subtasks
+            .map((s) => s.orderIndex)
+            .reduce((a, b) => a > b ? a : b) +
+        1;
   }
 }

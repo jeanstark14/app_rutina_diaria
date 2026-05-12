@@ -4,6 +4,12 @@ import 'dart:math';
 import '../services/task_provider.dart';
 import '../services/user_provider.dart';
 import '../services/theme_provider.dart';
+import '../services/water_provider.dart';
+import '../services/water_provider.dart';
+import '../services/movie_provider.dart';
+import '../services/nutrition_provider.dart';
+import '../models/movie_model.dart';
+import '../models/nutrition_model.dart';
 import '../theme/app_theme.dart';
 
 class StatsView extends StatelessWidget {
@@ -13,7 +19,10 @@ class StatsView extends StatelessWidget {
   Widget build(BuildContext context) {
     final taskProvider = context.watch<TaskProvider>();
     final userProvider = context.watch<UserProvider>();
+    final waterProvider = context.watch<WaterProvider>();
+    final movieProvider = context.watch<MovieProvider>();
     final themeProvider = context.watch<ThemeProvider>();
+    final nutritionProvider = context.watch<NutritionProvider>();
     final isDark = themeProvider.isDarkMode;
     final primaryColor = themeProvider.primaryColor;
 
@@ -23,6 +32,11 @@ class StatsView extends StatelessWidget {
         .length;
     final successRate =
         tasks.isEmpty ? 0 : (completedCount / tasks.length * 100).toInt();
+
+    final movies = movieProvider.moviesInAgenda;
+    final favoriteCount = movies.where((m) => m.isFavorite).length;
+    final upcomingCount = movies.where((m) => m.daysUntilRelease >= 0).length;
+    final releasedCount = movies.where((m) => m.daysUntilRelease < 0).length;
 
     return Scaffold(
       backgroundColor:
@@ -58,6 +72,33 @@ class StatsView extends StatelessWidget {
                     Icons.bolt, Colors.orange, isDark),
               ],
             ),
+            const SizedBox(height: 32),
+            Text('REPORTE CINEMATOGRÁFICO',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white70 : AppTheme.textGrey,
+                    fontSize: 12,
+                    letterSpacing: 1)),
+            const SizedBox(height: 16),
+            _buildMovieStatsCard(movies.length, favoriteCount, upcomingCount, releasedCount, isDark, primaryColor),
+            const SizedBox(height: 32),
+            Text('SUMINISTRO HÍDRICO',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white70 : AppTheme.textGrey,
+                    fontSize: 12,
+                    letterSpacing: 1)),
+            const SizedBox(height: 16),
+            _buildWaterStatsCard(waterProvider, isDark, primaryColor),
+            const SizedBox(height: 32),
+            Text('REPORTE DE ALIMENTACIÓN',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white70 : AppTheme.textGrey,
+                    fontSize: 12,
+                    letterSpacing: 1)),
+            const SizedBox(height: 16),
+            _buildNutritionStatsCard(nutritionProvider, isDark, primaryColor),
             const SizedBox(height: 32),
             Text('RENDIMIENTO TÁCTICO',
                 style: TextStyle(
@@ -102,6 +143,67 @@ class StatsView extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildMovieStatsCard(int total, int favorites, int upcoming, int released, bool isDark, Color primaryColor) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildSimpleStat('TOTAL', total.toString(), Icons.movie, Colors.blue),
+              _buildSimpleStat('FAVORITOS', favorites.toString(), Icons.favorite, Colors.red),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Próximos Estrenos', style: TextStyle(color: isDark ? Colors.white70 : AppTheme.textGrey, fontSize: 12)),
+              Text('$upcoming', style: const TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: LinearProgressIndicator(
+              value: total == 0 ? 0 : upcoming / total,
+              backgroundColor: isDark ? Colors.white10 : Colors.grey.shade100,
+              valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+              minHeight: 6,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Ya Estrenadas', style: TextStyle(color: isDark ? Colors.white70 : AppTheme.textGrey, fontSize: 12)),
+              Text('$released', style: const TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSimpleStat(String label, String value, IconData icon, Color color) {
+    return Column(
+      children: [
+        Icon(icon, color: color, size: 20),
+        const SizedBox(height: 4),
+        Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        Text(label, style: TextStyle(color: AppTheme.textGrey, fontSize: 9, fontWeight: FontWeight.bold)),
+      ],
     );
   }
 
@@ -276,6 +378,60 @@ class StatsView extends StatelessWidget {
         'author': 'Salmo 91:2',
         'saga': 'FE'
       },
+      {
+        'text':
+            '"¡Mira que te mando que te esfuerces y seas valiente; no temas ni desmayes, porque Jehová tu Dios estará contigo en dondequiera que vayas."',
+        'author': 'Josué 1:9',
+        'saga': 'FE'
+      },
+      {
+        'text':
+            '"Pero los que esperan a Jehová tendrán nuevas fuerzas; levantarán alas como las águilas; correrán, y no se cansarán; caminarán, y no se fatigarán."',
+        'author': 'Isaías 40:31',
+        'saga': 'FE'
+      },
+      {
+        'text':
+            '"Porque no nos ha dado Dios espíritu de cobardía, sino de poder, de amor y de dominio propio."',
+        'author': '2 Timoteo 1:7',
+        'saga': 'FE'
+      },
+      {
+        'text':
+            '"Echa sobre Jehová tu carga, y él te sustentará; no dejará para siempre caído al justo."',
+        'author': 'Salmo 55:22',
+        'saga': 'FE'
+      },
+      {
+        'text':
+            '"Mas buscad primeramente el reino de Dios y su justicia, y todas estas cosas os serán añadidas."',
+        'author': 'Mateo 6:33',
+        'saga': 'FE'
+      },
+      {
+        'text':
+            '"Confía en Jehová con todo tu corazón, y no te apoyes en tu propia prudencia. Reconócelo en todos tus caminos, y él enderezará tus veredas."',
+        'author': 'Proverbios 3:5-6',
+        'saga': 'FE'
+      },
+      {
+        'text':
+            '"Clama a mí, y yo te responderé, y te enseñaré cosas grandes y ocultas que tú no conoces."',
+        'author': 'Jeremías 33:3',
+        'saga': 'FE'
+      },
+      {
+        'text':
+            '"Jehová es mi fortaleza y mi escudo; en él confió mi corazón, y fui ayudado."',
+        'author': 'Salmo 28:7',
+        'saga': 'FE'
+      },
+      {
+        'text':
+            '"Por nada estéis afanosos, sino sean conocidas vuestras peticiones delante de Dios en toda oración y ruego, con acción de gracias."',
+        'author': 'Filipenses 4:6',
+        'saga': 'FE'
+      },
       // MARVEL
       {
         'text': '"Un gran poder conlleva una gran responsabilidad."',
@@ -358,14 +514,12 @@ class StatsView extends StatelessWidget {
       },
       // DC
       {
-        'text':
-            '"Pero es quien seas en el interior, son tus actos los que te definen."',
+        'text': '"Son tus actos los que te definen."',
         'author': 'Bruce Wayne',
         'saga': 'DC'
       },
       {
-        'text':
-            '¿Por qué nos caemos? Para que podamos aprender a recuperarnos.',
+        'text': '¿Por qué nos caemos? Para aprender a levantarnos',
         'author': 'Alfred Pennyworth',
         'saga': 'DC'
       },
@@ -389,7 +543,7 @@ class StatsView extends StatelessWidget {
       },
       {
         'text':
-            'Tus decisiones y tus acciones, Clark... eso es lo que te hace ser quien eres. No podría estar más orgulloso de ti.',
+            'Tus decisiones, Clark... tus actos... son lo que te convierte en el hombre que eres.',
         'author': 'Jonathan Kent',
         'saga': 'DC'
       },
@@ -404,12 +558,6 @@ class StatsView extends StatelessWidget {
         'text': '"El límite es solo una ilusión."',
         'author': 'Vegeta',
         'saga': 'ANIME'
-      },
-      {
-        'text':
-            'No mires hacia atrás. Si tienes algo que hacer, mira siempre hacia adelante.',
-        'author': 'Satoru Gojo',
-        'saga': 'Jujutsu Kaisen'
       },
       {
         'text':
@@ -459,43 +607,277 @@ class StatsView extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: primaryColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: primaryColor.withOpacity(0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
+        color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey[300]!,
+          width: 1,
+        ),
       ),
       child: Column(
         children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.auto_awesome,
+                color: primaryColor.withOpacity(0.6),
+                size: 14,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                quote['saga'] ?? 'MOTIVACIÓN',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: primaryColor,
+                  letterSpacing: 1.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
           Text(
-            quote['author'] ?? '',
+            '"${quote['text'] ?? ''}"',
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Colors.white70,
-              letterSpacing: 1,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              fontStyle: FontStyle.italic,
+              color: isDark ? Colors.white.withOpacity(0.8) : Colors.black87,
+              height: 1.4,
             ),
           ),
           const SizedBox(height: 12),
           Text(
-            quote['text'] ?? '',
+            '- ${quote['author'] ?? ''}',
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              height: 1.3,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: primaryColor.withOpacity(0.8),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildWaterStatsCard(
+      WaterProvider water, bool isDark, Color primaryColor) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.water_drop,
+                      color: Colors.blue.shade600,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'HIDRATACIÓN TÁCTICA',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white70 : AppTheme.textGrey,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${water.todayIntake}/${water.dailyGoal} vasos',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : AppTheme.textBlack,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              if (water.currentStreak > 0)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.local_fire_department,
+                        color: Colors.orange,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${water.currentStreak} días',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: LinearProgressIndicator(
+              value: water.progressPercent,
+              minHeight: 10,
+              backgroundColor: isDark ? Colors.white10 : Colors.grey.shade200,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                water.isGoalCompleted ? Colors.green : Colors.blue.shade600,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Progreso: ${(water.progressPercent * 100).toInt()}%',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? Colors.white60 : AppTheme.textGrey,
+                ),
+              ),
+              if (water.isGoalCompleted)
+                Text(
+                  '¡Meta alcanzada!',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green.shade600,
+                  ),
+                )
+              else
+                Text(
+                  '${water.remainingGlasses} vasos restantes',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.white60 : AppTheme.textGrey,
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNutritionStatsCard(NutritionProvider nutrition, bool isDark, Color primaryColor) {
+    if (nutrition.profile == null) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.darkSurface : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: const Center(
+          child: Text('Perfil nutricional no configurado', style: TextStyle(color: Colors.grey)),
+        ),
+      );
+    }
+
+    final targets = nutrition.targetMacros;
+    final calProgress = (nutrition.totalCalories / nutrition.targetCalories).clamp(0.0, 1.0);
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('CALORÍAS HOY', style: TextStyle(color: isDark ? Colors.white70 : AppTheme.textGrey, fontSize: 11, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text('${nutrition.totalCalories} / ${nutrition.targetCalories.toInt()} kcal', 
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              CircularProgressIndicator(
+                value: calProgress,
+                backgroundColor: primaryColor.withOpacity(0.1),
+                valueColor: AlwaysStoppedAnimation<Color>(calProgress >= 1.0 ? Colors.green : primaryColor),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          _buildCompactMacroRow('PROTEÍNA', nutrition.totalProtein, targets['protein']!, Colors.redAccent, isDark),
+          const SizedBox(height: 12),
+          _buildCompactMacroRow('CARBS', nutrition.totalCarbs, targets['carbs']!, Colors.orangeAccent, isDark),
+          const SizedBox(height: 12),
+          _buildCompactMacroRow('GRASAS', nutrition.totalFat, targets['fat']!, Colors.blueAccent, isDark),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactMacroRow(String label, double current, double target, Color color, bool isDark) {
+    final progress = (current / target).clamp(0.0, 1.0);
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
+            Text('${current.toInt()}g / ${target.toInt()}g', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: LinearProgressIndicator(
+            value: progress,
+            backgroundColor: color.withOpacity(0.1),
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+            minHeight: 4,
+          ),
+        ),
+      ],
     );
   }
 }

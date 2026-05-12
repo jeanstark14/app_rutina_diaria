@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import 'dart:async';
 import '../theme/app_theme.dart';
 import '../services/theme_provider.dart';
 import '../services/task_provider.dart';
+import '../services/user_provider.dart';
 import '../services/notification_service.dart';
 import '../models/task_model.dart';
+import '../widgets/music_controls_overlay.dart';
 
 class FocusModeView extends StatefulWidget {
   final String missionTitle;
@@ -32,10 +33,8 @@ class _FocusModeViewState extends State<FocusModeView> {
   final NotificationService _notificationService = NotificationService();
   late PageController _missionPageController;
   int _currentMissionIndex = 0;
-  late List<Task> _availableMissions;
+  List<Task> _availableMissions = [];
   Task? _selectedTask;
-
-  final List<int> _timeOptions = [5, 15, 25, 30, 45, 50, 60, 90, 120];
 
   @override
   void initState() {
@@ -45,6 +44,10 @@ class _FocusModeViewState extends State<FocusModeView> {
     _totalSeconds = widget.initialMinutes * 60;
     _missionPageController =
         PageController(viewportFraction: 0.85, initialPage: 0);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeMissions();
+    });
   }
 
   @override
@@ -54,43 +57,101 @@ class _FocusModeViewState extends State<FocusModeView> {
     super.dispose();
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
+  void _initializeMissions() {
+    if (!mounted) return;
+
     final taskProvider = context.read<TaskProvider>();
-    _availableMissions = taskProvider.missionsWithTimer;
-    if (_selectedTask == null && _availableMissions.isNotEmpty) {
-      _selectedTask = _availableMissions[0];
-      _secondsRemaining = _selectedTask?.duration?.inMinutes ?? 30;
-      _totalSeconds = _secondsRemaining;
+    final missions = taskProvider.missionsWithTimer;
+
+    if (missions.isNotEmpty) {
+      setState(() {
+        _availableMissions = missions;
+        
+        // Si ya tenemos una tarea seleccionada (desde el widget), buscamos su índice
+        if (_selectedTask != null) {
+          final index = missions.indexWhere((m) => m.id == _selectedTask!.id);
+          if (index != -1) {
+            _currentMissionIndex = index;
+            // Usamos jumpToPage para sincronizar el controlador sin disparar animaciones ruidosas
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (_missionPageController.hasClients) {
+                _missionPageController.jumpToPage(index);
+              }
+            });
+          }
+        } else {
+          // Si no hay tarea previa, seleccionamos la primera
+          _selectedTask = _availableMissions[0];
+          _secondsRemaining = (_selectedTask?.duration?.inMinutes ?? 30) * 60;
+          _totalSeconds = _secondsRemaining;
+        }
+      });
     }
   }
 
   void _startTimer() async {
+    if (_isRunning) return;
+    _timer?.cancel();
+
     final task = _selectedTask;
     if (task == null) return;
 
     setState(() => _isRunning = true);
 
-    final durationMinutes = task.duration?.inMinutes ?? 30;
-    await _notificationService.createSystemTimer(
-      durationSeconds: durationMinutes * 60,
-      title: task.title,
-    );
+    try {
+      final durationMinutes = task.duration?.inMinutes ?? 30;
+      await _notificationService.createSystemTimer(
+        durationSeconds: durationMinutes * 60,
+        title: task.title,
+      );
+    } catch (e) {
+      debugPrint('Error al crear temporizador: $e');
+    }
 
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_secondsRemaining > 0) {
-        setState(() => _secondsRemaining--);
-      } else {
-        _timer?.cancel();
+    final startTime = DateTime.now();
+    final initialSeconds = _secondsRemaining;
+
+    _timer = Timer.periodic(const Duration(milliseconds: 200), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      final elapsed = DateTime.now().difference(startTime).inSeconds;
+      final newRemaining = initialSeconds - elapsed;
+
+      if (newRemaining <= 0) {
+        timer.cancel();
+        setState(() {
+          _secondsRemaining = 0;
+          _isRunning = false;
+        });
         _onTimerComplete();
+      } else if (newRemaining != _secondsRemaining) {
+        setState(() => _secondsRemaining = newRemaining);
       }
     });
   }
 
   void _onTimerComplete() async {
     _timer?.cancel();
-    _showSuccessDialog();
+
+    if (_selectedTask != null) {
+      try {
+        final taskProvider = context.read<TaskProvider>();
+        final userProvider = context.read<UserProvider>();
+
+        final xp = await taskProvider.completeTaskWithSubtasks(_selectedTask!);
+        await userProvider.addXp(xp);
+
+        _showSuccessDialog(xp);
+      } catch (e) {
+        debugPrint('Error al completar tarea: $e');
+        _showSuccessDialog(0);
+      }
+    } else {
+      _showSuccessDialog(0);
+    }
   }
 
   void _pauseTimer() async {
@@ -108,30 +169,33 @@ class _FocusModeViewState extends State<FocusModeView> {
   }
 
   void _onMissionPageChanged(int index) {
-    if (_availableMissions.isEmpty) return;
+    if (_availableMissions.isEmpty || _currentMissionIndex == index) return;
+    
     setState(() {
       _currentMissionIndex = index;
       _selectedTask = _availableMissions[index];
-      _secondsRemaining = _selectedTask?.duration?.inMinutes ?? 30 * 60;
+      _secondsRemaining = (_selectedTask?.duration?.inMinutes ?? 30) * 60;
       _totalSeconds = _secondsRemaining;
       _isRunning = false;
     });
     _timer?.cancel();
   }
 
-  void _showSuccessDialog() {
+  void _showSuccessDialog(int xpGained) {
+    final message = xpGained > 0
+        ? 'Mision completada con todas sus subtareas!\nHas ganado $xpGained XP por tu excelente desempeno.'
+        : 'Concentracion absoluta mantenida. Sigue asi.';
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        title: const Text('MISIÓN CUMPLIDA',
+        title: Text(xpGained > 0 ? 'MISIÓN COMPLETADA!' : 'MISIÓN CUMPLIDA',
             textAlign: TextAlign.center,
             style: TextStyle(
                 fontWeight: FontWeight.bold, color: AppTheme.primaryBlue)),
-        content: const Text(
-            'Concentración absoluta mantenida. Has ganado XP extra por tu enfoque táctico.',
-            textAlign: TextAlign.center),
+        content: Text(message, textAlign: TextAlign.center),
         actions: [
           Center(
             child: ElevatedButton(
@@ -161,12 +225,10 @@ class _FocusModeViewState extends State<FocusModeView> {
   @override
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
-    final taskProvider = context.watch<TaskProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = themeProvider.primaryColor;
     final progress =
         _totalSeconds == 0 ? 0.0 : _secondsRemaining / _totalSeconds;
-    _availableMissions = taskProvider.missionsWithTimer;
 
     final selectedTask = _selectedTask ??
         (widget.task ??
@@ -182,242 +244,308 @@ class _FocusModeViewState extends State<FocusModeView> {
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
-      body: selectedTask == null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.timer_off,
-                      size: 64,
-                      color: isDark ? Colors.white24 : Colors.black12),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No hay misiones con temporizador',
-                    style: TextStyle(color: AppTheme.textGrey, fontSize: 16),
+      body: Stack(
+        children: [
+          if (_availableMissions.isEmpty)
+            SafeArea(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: primaryColor.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.timer_off_outlined,
+                            size: 80,
+                            color: primaryColor.withValues(alpha: 0.5)),
+                      ),
+                      const SizedBox(height: 32),
+                      Text(
+                        'SIN MISIONES ACTIVAS',
+                        style: TextStyle(
+                          color: isDark ? Colors.white : AppTheme.textBlack,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'No tienes tareas con temporizador configuradas para hoy.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: isDark ? Colors.white70 : AppTheme.textGrey,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 40),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: const Text(
+                            'VOLVER AL PANEL',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, letterSpacing: 1),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style:
-                        ElevatedButton.styleFrom(backgroundColor: primaryColor),
-                    child: const Text('VOLVER'),
-                  ),
-                ],
+                ),
               ),
             )
-          : Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                children: [
-                  if (_availableMissions.length > 1) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      'MISIONES ACTIVAS',
-                      style: TextStyle(
-                        color: primaryColor,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 2,
+          else
+            SafeArea(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight,
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      height: 100,
-                      child: PageView.builder(
-                        controller: _missionPageController,
-                        onPageChanged: _onMissionPageChanged,
-                        itemCount: _availableMissions.length,
-                        physics: const BouncingScrollPhysics(),
-                        itemBuilder: (context, index) {
-                          final mission = _availableMissions[index];
-                          final isSelected = _currentMissionIndex == index;
-                          final taskColor = Color(mission.color);
-                          return AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            margin: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? (isDark
-                                      ? AppTheme.darkSurface
-                                      : Colors.white)
-                                  : (isDark
-                                      ? Colors.white10
-                                      : Colors.grey.shade100),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color:
-                                    isSelected ? taskColor : Colors.transparent,
-                                width: 2,
-                              ),
-                              boxShadow: isSelected
-                                  ? [
-                                      BoxShadow(
-                                          color:
-                                              taskColor.withValues(alpha: 0.3),
-                                          blurRadius: 12)
-                                    ]
-                                  : null,
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons.radar, color: taskColor, size: 18),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    mainAxisAlignment: MainAxisAlignment.center,
+                      child: IntrinsicHeight(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            children: [
+                              if (_availableMissions.length > 1)
+                                SizedBox(
+                                  height: 100,
+                                  child: PageView.builder(
+                                    controller: _missionPageController,
+                                    onPageChanged: _onMissionPageChanged,
+                                    itemCount: _availableMissions.length,
+                                    physics: const BouncingScrollPhysics(),
+                                    itemBuilder: (context, index) {
+                                      final mission = _availableMissions[index];
+                                      final isSelected =
+                                          _currentMissionIndex == index;
+                                      final taskColor = Color(mission.color);
+                                      return AnimatedContainer(
+                                        duration:
+                                            const Duration(milliseconds: 200),
+                                        margin: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 4),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 10),
+                                        decoration: BoxDecoration(
+                                          color: isSelected
+                                              ? (isDark
+                                                  ? AppTheme.darkSurface
+                                                  : Colors.white)
+                                              : (isDark
+                                                  ? Colors.white10
+                                                  : Colors.grey.shade100),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                          border: Border.all(
+                                            color: isSelected
+                                                ? taskColor
+                                                : Colors.transparent,
+                                            width: 2,
+                                          ),
+                                          boxShadow: isSelected
+                                              ? [
+                                                  BoxShadow(
+                                                      color:
+                                                          taskColor.withValues(
+                                                              alpha: 0.3),
+                                                      blurRadius: 12)
+                                                ]
+                                              : null,
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.radar,
+                                                color: taskColor, size: 18),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  Text(
+                                                    mission.title,
+                                                    style: TextStyle(
+                                                      color: isDark
+                                                          ? Colors.white
+                                                          : AppTheme.textBlack,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: 13,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    '${mission.duration?.inMinutes ?? 30} min',
+                                                    style: TextStyle(
+                                                      color: isDark
+                                                          ? Colors.white60
+                                                          : AppTheme.textGrey,
+                                                      fontSize: 10,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                )
+                              else
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: primaryColor.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                        color: primaryColor.withValues(
+                                            alpha: 0.3)),
+                                  ),
+                                  child: Text(
+                                    'MISIÓN: ${selectedTask?.title.toUpperCase() ?? 'NINGUNA'}',
+                                    style: TextStyle(
+                                      color: primaryColor,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ),
+                              const Spacer(),
+                              Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: 250,
+                                    height: 250,
+                                    child: CircularProgressIndicator(
+                                      value: progress,
+                                      strokeWidth: 12,
+                                      backgroundColor: isDark
+                                          ? Colors.white10
+                                          : Colors.black12,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                          primaryColor),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 220,
+                                    height: 220,
+                                    child: CircularProgressIndicator(
+                                      value: 1,
+                                      strokeWidth: 1,
+                                      backgroundColor: Colors.transparent,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                          primaryColor.withValues(alpha: 0.2)),
+                                    ),
+                                  ),
+                                  Column(
+                                    mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text(
-                                        mission.title,
-                                        style: TextStyle(
-                                          color: isDark
-                                              ? Colors.white
-                                              : AppTheme.textBlack,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                                        _formatTime(_secondsRemaining),
+                                        style: const TextStyle(
+                                            fontSize: 48,
+                                            fontWeight: FontWeight.bold,
+                                            fontFamily: 'monospace'),
                                       ),
-                                      const SizedBox(height: 2),
                                       Text(
-                                        '${mission.duration?.inMinutes ?? 30} min • ${DateFormat('HH:mm').format(mission.startTime)}',
+                                        _isRunning
+                                            ? 'COMBATE ACTIVO'
+                                            : 'EN ESPERA',
                                         style: TextStyle(
-                                          color: isDark
-                                              ? Colors.white60
-                                              : AppTheme.textGrey,
-                                          fontSize: 10,
-                                        ),
+                                            color: primaryColor,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 2),
                                       ),
                                     ],
                                   ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                  ] else ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: primaryColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                            color: primaryColor.withValues(alpha: 0.3)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.radar, color: primaryColor, size: 16),
-                          const SizedBox(width: 8),
-                          Text(
-                            'MISIÓN: ${selectedTask.title.toUpperCase()}',
-                            style: TextStyle(
-                              color: primaryColor,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 10,
-                            ),
+                                ],
+                              ),
+                              const Spacer(),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  _buildTimeOption('25m', 25, primaryColor),
+                                  const SizedBox(width: 16),
+                                  _buildTimeOption('50m', 50, primaryColor),
+                                  const SizedBox(width: 16),
+                                  _buildTimeOption(
+                                      '${selectedTask?.duration?.inMinutes ?? 30}m',
+                                      selectedTask?.duration?.inMinutes ?? 30,
+                                      primaryColor),
+                                ],
+                              ),
+                              const SizedBox(height: 40),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceAround,
+                                children: [
+                                  _buildActionButton(
+                                    icon: _isRunning
+                                        ? Icons.pause
+                                        : Icons.play_arrow,
+                                    label: _isRunning ? 'PAUSAR' : 'INICIAR',
+                                    color: _isRunning
+                                        ? Colors.orange
+                                        : Colors.green,
+                                    onTap:
+                                        _isRunning ? _pauseTimer : _startTimer,
+                                  ),
+                                  _buildActionButton(
+                                    icon: Icons.stop,
+                                    label: 'ABORTAR',
+                                    color: Colors.red,
+                                    onTap: () async {
+                                      if (context.mounted)
+                                        Navigator.pop(context);
+                                    },
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 40),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
-                  ],
-                  const Spacer(),
-                  Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      SizedBox(
-                        width: 250,
-                        height: 250,
-                        child: CircularProgressIndicator(
-                          value: progress,
-                          strokeWidth: 12,
-                          backgroundColor:
-                              isDark ? Colors.white10 : Colors.black12,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(primaryColor),
                         ),
                       ),
-                      SizedBox(
-                        width: 220,
-                        height: 220,
-                        child: CircularProgressIndicator(
-                          value: 1,
-                          strokeWidth: 1,
-                          backgroundColor: Colors.transparent,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                              primaryColor.withValues(alpha: 0.2)),
-                        ),
-                      ),
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _formatTime(_secondsRemaining),
-                            style: const TextStyle(
-                                fontSize: 48,
-                                fontWeight: FontWeight.bold,
-                                fontFamily: 'monospace'),
-                          ),
-                          Text(
-                            _isRunning ? 'COMBATE ACTIVO' : 'EN ESPERA',
-                            style: TextStyle(
-                                color: primaryColor,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 2),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const Spacer(),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildTimeOption('25m', 25, primaryColor),
-                      const SizedBox(width: 16),
-                      _buildTimeOption('50m', 50, primaryColor),
-                      const SizedBox(width: 16),
-                      _buildTimeOption(
-                          '${selectedTask.duration?.inMinutes ?? 30}m',
-                          selectedTask.duration?.inMinutes ?? 30,
-                          primaryColor),
-                    ],
-                  ),
-                  const SizedBox(height: 40),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildActionButton(
-                        icon: _isRunning ? Icons.pause : Icons.play_arrow,
-                        label: _isRunning ? 'PAUSAR' : 'INICIAR',
-                        color: _isRunning ? Colors.orange : Colors.green,
-                        onTap: _isRunning ? _pauseTimer : _startTimer,
-                      ),
-                      _buildActionButton(
-                        icon: Icons.stop,
-                        label: 'ABORTAR',
-                        color: Colors.red,
-                        onTap: () async {
-                          if (context.mounted) Navigator.pop(context);
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 40),
-                ],
+                    ),
+                  );
+                },
               ),
             ),
+          const MusicControlsOverlay(),
+        ],
+      ),
     );
   }
 

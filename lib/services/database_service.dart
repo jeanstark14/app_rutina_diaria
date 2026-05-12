@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/task_model.dart';
+import '../models/subtask_model.dart';
 
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
@@ -26,9 +27,10 @@ class DatabaseService {
       print('Inicializando base de datos en: $path');
       return await openDatabase(
         path,
-        version: 5, // Incrementar a versión 5
-        onCreate: (db, version) {
-          return db.execute(
+        version: 7, // Incrementar a versión 7 (nutrition)
+        onCreate: (db, version) async {
+          // Crear tabla tasks
+          await db.execute(
             '''CREATE TABLE tasks(
             id TEXT PRIMARY KEY, 
             title TEXT, 
@@ -42,6 +44,32 @@ class DatabaseService {
             notificationSound TEXT,
             reminderMinutes INTEGER DEFAULT 5,
             syncEnabled INTEGER DEFAULT 0
+          )''',
+          );
+          // Crear tabla subtasks
+          await db.execute(
+            '''CREATE TABLE subtasks(
+            id TEXT PRIMARY KEY,
+            taskId TEXT,
+            title TEXT,
+            isCompleted INTEGER DEFAULT 0,
+            orderIndex INTEGER DEFAULT 0,
+            completedAt TEXT,
+            FOREIGN KEY(taskId) REFERENCES tasks(id) ON DELETE CASCADE
+          )''',
+          );
+          // Crear tabla nutrition_logs
+          await db.execute(
+            '''CREATE TABLE nutrition_logs(
+            id TEXT PRIMARY KEY,
+            date TEXT,
+            mealType TEXT,
+            foodName TEXT,
+            calories INTEGER,
+            protein REAL,
+            carbs REAL,
+            fat REAL,
+            timestamp TEXT
           )''',
           );
         },
@@ -65,6 +93,35 @@ class DatabaseService {
           if (oldVersion < 5) {
             await db.execute(
                 "ALTER TABLE tasks ADD COLUMN syncEnabled INTEGER DEFAULT 0");
+          }
+          if (oldVersion < 6) {
+            // Crear tabla subtasks para usuarios existentes
+            await db.execute(
+              '''CREATE TABLE subtasks(
+              id TEXT PRIMARY KEY,
+              taskId TEXT,
+              title TEXT,
+              isCompleted INTEGER DEFAULT 0,
+              orderIndex INTEGER DEFAULT 0,
+              completedAt TEXT,
+              FOREIGN KEY(taskId) REFERENCES tasks(id) ON DELETE CASCADE
+            )''',
+            );
+          }
+          if (oldVersion < 7) {
+            await db.execute(
+              '''CREATE TABLE nutrition_logs(
+              id TEXT PRIMARY KEY,
+              date TEXT,
+              mealType TEXT,
+              foodName TEXT,
+              calories INTEGER,
+              protein REAL,
+              carbs REAL,
+              fat REAL,
+              timestamp TEXT
+            )''',
+            );
           }
         },
       );
@@ -113,5 +170,60 @@ class DatabaseService {
       }
       return task.repeatDays.contains(date.weekday);
     }).toList();
+  }
+
+  // --- MÉTODOS PARA SUBTASKS ---
+
+  Future<void> insertSubtask(Subtask subtask) async {
+    final db = await database;
+    await db.insert('subtasks', subtask.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<void> updateSubtask(Subtask subtask) async {
+    final db = await database;
+    await db.update('subtasks', subtask.toMap(),
+        where: 'id = ?', whereArgs: [subtask.id]);
+  }
+
+  Future<void> deleteSubtask(String id) async {
+    final db = await database;
+    await db.delete('subtasks', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> deleteSubtasksByTask(String taskId) async {
+    final db = await database;
+    await db.delete('subtasks', where: 'taskId = ?', whereArgs: [taskId]);
+  }
+
+  Future<List<Subtask>> getSubtasksByTask(String taskId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'subtasks',
+      where: 'taskId = ?',
+      whereArgs: [taskId],
+      orderBy: 'orderIndex ASC',
+    );
+    return List.generate(maps.length, (i) => Subtask.fromMap(maps[i]));
+  }
+
+  Future<List<Subtask>> getAllSubtasks() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps =
+        await db.query('subtasks', orderBy: 'taskId ASC, orderIndex ASC');
+    return List.generate(maps.length, (i) => Subtask.fromMap(maps[i]));
+  }
+
+  /// Obtiene todas las tareas con sus subtareas incluidas
+  Future<List<Task>> getTasksWithSubtasks() async {
+    final tasks = await getTasks();
+
+    for (var i = 0; i < tasks.length; i++) {
+      final subtasks = await getSubtasksByTask(tasks[i].id);
+      // Reemplazar la lista vacía con las subtareas cargadas
+      tasks[i] = tasks[i].copyWith(subtasks: subtasks);
+    }
+
+    return tasks;
   }
 }

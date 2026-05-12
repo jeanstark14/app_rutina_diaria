@@ -17,17 +17,20 @@ class _OnboardingViewState extends State<OnboardingView> {
   final List<Map<String, String>> _pages = [
     {
       'title': 'Tu Cuartel General',
-      'desc': 'Un gran poder conlleva una gran responsabilidad. Organiza tus misiones diarias para salvar tu productividad.',
+      'desc':
+          'Un gran poder conlleva una gran responsabilidad. Organiza tus misiones diarias para salvar tu productividad.',
       'icon': '🛡️',
     },
     {
       'title': 'Protocolo de Racha',
-      'desc': 'No rompas la cadena de éxito. Mantén tu fuego encendido para desbloquear tu rango heroico.',
-      'icon': '⚡',
+      'desc':
+          'No rompas la cadena de éxito. Mantén tu fuego encendido para desbloquear tu rango heroico.',
+      'icon': '🔥',
     },
     {
       'title': 'Modo Prime Activado',
-      'desc': 'Recibe alertas tácticas y completa tus objetivos. ¡Haría esto todo el día!',
+      'desc':
+          'Recibe alertas tácticas y completa tus objetivos. ¡Haría esto todo el día!',
       'icon': '🦸',
     },
   ];
@@ -36,7 +39,8 @@ class _OnboardingViewState extends State<OnboardingView> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('is_first_time', false);
     if (mounted) {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const AgendaView()));
+      Navigator.pushReplacement(
+          context, MaterialPageRoute(builder: (context) => const AgendaView()));
     }
   }
 
@@ -45,7 +49,8 @@ class _OnboardingViewState extends State<OnboardingView> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? AppTheme.darkBackground : AppTheme.backgroundGrey,
+      backgroundColor:
+          isDark ? AppTheme.darkBackground : AppTheme.backgroundGrey,
       body: SafeArea(
         child: Column(
           children: [
@@ -63,12 +68,15 @@ class _OnboardingViewState extends State<OnboardingView> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
-                    children: List.generate(_pages.length, (idx) => _buildIndicator(idx == _currentPage)),
+                    children: List.generate(_pages.length,
+                        (idx) => _buildIndicator(idx == _currentPage)),
                   ),
                   ElevatedButton(
                     onPressed: () {
                       if (_currentPage < _pages.length - 1) {
-                        _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.ease);
+                        _pageController.nextPage(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.ease);
                       } else {
                         _finishOnboarding();
                       }
@@ -76,10 +84,14 @@ class _OnboardingViewState extends State<OnboardingView> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryBlue,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 32, vertical: 16),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30)),
                     ),
-                    child: Text(_currentPage == _pages.length - 1 ? '¡VENGADORES, REUNÍOS!' : 'SIGUIENTE'),
+                    child: Text(_currentPage == _pages.length - 1
+                        ? '¡VENGADORES, REUNÍOS!'
+                        : 'SIGUIENTE'),
                   ),
                 ],
               ),
