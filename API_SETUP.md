@@ -28,20 +28,20 @@ Para utilizar la funcionalidad de búsqueda de películas de Jean Diary, necesit
 
 ## ⚙️ Configuración en el Proyecto
 
-1. **Abre el archivo de configuración**
+1. **Copia el archivo de ejemplo**
    ```
-   lib/services/tmdb_config.dart
-   ```
-
-2. **Reemplaza la API Key**
-   ```dart
-   class TmdbConfig {
-     static const String apiKey = 'TU_API_KEY_AQUI'; // Reemplaza esto
-     // ... resto del código
-   }
+   cp .env.example .env
    ```
 
-3. **Guarda el archivo**
+2. **Edita el archivo `.env`** y reemplaza tu API key:
+   ```
+   TMDB_API_KEY=TU_API_KEY_AQUI
+   ```
+
+3. **Ejecuta flutter pub get** para instalar la dependencia:
+   ```
+   flutter pub get
+   ```
 
 ## 🔧 Características de la API
 
@@ -74,8 +74,9 @@ Una vez configurada, tendrás acceso a:
 ## 🛠️ Solución de Problemas
 
 ### Error: "API key de TMDB no configurada"
-- Asegúrate de haber reemplazado 'YOUR_API_KEY_HERE' con tu API key real
-- Verifica que no hay espacios extraños alrededor de la API key
+- Asegúrate de haber completado el archivo `.env` con tu API key real
+- Verifica que no hay espacios alrededor de la API key
+- Ejecuta `flutter pub get` después de crear el archivo
 
 ### Error: "Failed to search movies"
 - Verifica tu conexión a internet
@@ -96,9 +97,10 @@ TMDB tiene los siguientes límites para la API gratuita:
 
 ## 🔒 Seguridad
 
+- **El archivo `.env` está excluido de Git** por seguridad
 - **Nunca compartas tu API key** públicamente
 - **No la subas a repositorios públicos** de GitHub
-- La API key está incluida en el archivo `.gitignore` por seguridad
+- El archivo `.env.example` sirve como plantilla sin datos reales
 
 ## 📞 Soporte
 

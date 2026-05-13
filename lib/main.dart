@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/task_provider.dart';
 import 'services/theme_provider.dart';
 import 'services/user_provider.dart';
@@ -14,6 +15,8 @@ import 'views/onboarding_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  await dotenv.load(fileName: '.env');
 
   bool isFirstTime = true;
 
