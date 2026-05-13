@@ -318,6 +318,6 @@ Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) par
 
 ---
 
-**¡Gracias por usar App Rutina Diaria!** 🎉
+**¡Gracias por usar Jean Diary!** 🎉
 
 Si te gusta el proyecto, no olvides darle una ⭐ en GitHub y compartirlo con tus amigos.
